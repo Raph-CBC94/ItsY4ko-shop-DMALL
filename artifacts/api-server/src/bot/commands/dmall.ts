@@ -44,9 +44,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const message = interaction.options.getString("message", true);
 
-  // Récupère uniquement l'ID pour éviter les problèmes APIRole vs Role
-  const rawRole = interaction.options.get("role");
-  const roleId = rawRole?.value as string | undefined;
+  // .id est présent sur Role ET APIRole — méthode la plus fiable
+  const roleId = interaction.options.getRole("role")?.id ?? undefined;
 
   await interaction.deferReply({ ephemeral: true });
 
