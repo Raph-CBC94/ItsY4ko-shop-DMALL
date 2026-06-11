@@ -48,7 +48,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const rawRole = interaction.options.get("role");
   const roleId = rawRole?.value as string | undefined;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   // Résolution complète du rôle depuis le guild si fourni
   let resolvedRole: Role | null = null;
