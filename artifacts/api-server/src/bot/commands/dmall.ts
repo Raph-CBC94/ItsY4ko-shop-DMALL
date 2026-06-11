@@ -43,37 +43,57 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const message = interaction.options.getString("message", true);
-  const targetRole = interaction.options.getRole("role") as Role | null;
+
+  // Récupère uniquement l'ID pour éviter les problèmes APIRole vs Role
+  const rawRole = interaction.options.get("role");
+  const roleId = rawRole?.value as string | undefined;
 
   await interaction.deferReply({ ephemeral: true });
 
+  // Résolution complète du rôle depuis le guild si fourni
+  let resolvedRole: Role | null = null;
+  if (roleId) {
+    try {
+      resolvedRole = await guild.roles.fetch(roleId);
+      if (!resolvedRole) {
+        await interaction.editReply("❌ Le rôle spécifié est introuvable sur ce serveur.");
+        return;
+      }
+    } catch (err) {
+      logger.error({ err, roleId }, "Impossible de résoudre le rôle");
+      await interaction.editReply("❌ Impossible de résoudre le rôle spécifié.");
+      return;
+    }
+  }
+
+  // Récupère tous les membres avec leurs rôles
   try {
-    await guild.members.fetch();
+    await guild.members.fetch({ withPresences: false });
   } catch (err) {
     logger.error({ err }, "Impossible de récupérer les membres");
-    await interaction.editReply("❌ Impossible de récupérer la liste des membres. Vérifie les intents du bot.");
+    await interaction.editReply("❌ Impossible de récupérer la liste des membres. Vérifie que l'intent **Server Members Intent** est activé dans le portail développeur Discord.");
     return;
   }
 
   const members = guild.members.cache.filter((m: GuildMember) => {
     if (m.user.bot) return false;
-    if (targetRole) return m.roles.cache.has(targetRole.id);
+    if (resolvedRole) return m.roles.cache.has(resolvedRole.id);
     return true;
   });
 
   if (members.size === 0) {
-    const noTarget = targetRole
-      ? `Aucun membre humain trouvé avec le rôle **${targetRole.name}**.`
+    const noTarget = resolvedRole
+      ? `Aucun membre humain trouvé avec le rôle **${resolvedRole.name}**.`
       : "Aucun membre humain trouvé sur ce serveur.";
     await interaction.editReply(`⚠️ ${noTarget}`);
     return;
   }
 
-  const embed = new EmbedBuilder()
-    .setDescription(`📨 Envoi en cours vers **${members.size}** membre(s)${targetRole ? ` (rôle : ${targetRole.name})` : ""}…`)
+  const progressEmbed = new EmbedBuilder()
+    .setDescription(`📨 Envoi en cours vers **${members.size}** membre(s)${resolvedRole ? ` (rôle : ${resolvedRole.name})` : ""}…`)
     .setColor(Colors.Blue);
 
-  await interaction.editReply({ embeds: [embed] });
+  await interaction.editReply({ embeds: [progressEmbed] });
 
   let sent = 0;
   let failed = 0;
@@ -92,7 +112,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const resultEmbed = new EmbedBuilder()
     .setTitle("✅ Envoi terminé")
     .addFields(
-      { name: "Cible", value: targetRole ? `Rôle @${targetRole.name}` : "Tous les membres", inline: true },
+      { name: "Cible", value: resolvedRole ? `Rôle ${resolvedRole.name}` : "Tous les membres", inline: true },
       { name: "✅ Envoyés", value: String(sent), inline: true },
       { name: "❌ Échecs", value: String(failed), inline: true },
     )
