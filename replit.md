@@ -1,36 +1,39 @@
-# [Project name]
+# DM All — Bot Discord
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Bot Discord avec la commande `/dmall` pour envoyer des messages privés en masse à tous les membres d'un serveur ou à ceux d'un rôle précis.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — démarre le serveur API + le bot Discord
+- `pnpm run typecheck` — vérification TypeScript complète
+- Required env: `DISCORD_BOT_TOKEN` — token du bot Discord (secret Replit)
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Discord: discord.js v14
+- Build: esbuild (ESM bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/bot/index.ts` — démarrage du client Discord, enregistrement des commandes
+- `artifacts/api-server/src/bot/commands/dmall.ts` — logique de la commande `/dmall`
+- `artifacts/api-server/src/index.ts` — point d'entrée, lance Express + le bot
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Le bot est intégré au serveur Express existant — un seul process, démarrage en parallèle.
+- Les commandes slash sont auto-enregistrées globalement au démarrage (`Routes.applicationCommands`).
+- L'envoi DM est throttlé à 500 ms entre chaque membre pour respecter les rate limits Discord.
+- Les DMs échoués (DMs fermés) sont comptabilisés mais n'interrompent pas l'envoi.
+- La commande est protégée côté Discord (`setDefaultMemberPermissions(Administrator)`) ET vérifiée côté code.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- `/dmall message:<texte> [role:<rôle>]` — Envoie un DM à tous les membres (ou aux membres d'un rôle).
+- Réservée aux administrateurs.
+- Retourne un rapport d'envoi : nombre de DMs envoyés / échoués.
 
 ## User preferences
 
@@ -38,7 +41,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- L'intent `Server Members Intent` doit être activé dans le portail développeur Discord.
+- Les commandes slash globales peuvent mettre jusqu'à 1 h à apparaître sur les nouveaux serveurs (en pratique quasi-instantané).
+- Les membres avec les DMs désactivés comptent comme "échecs" — comportement normal.
 
 ## Pointers
 
