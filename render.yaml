@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: dm-all-bot
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+    healthCheckPath: /api/healthz
