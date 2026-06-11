@@ -67,10 +67,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   // Récupère tous les membres avec leurs rôles
   try {
-    await guild.members.fetch({ withPresences: false });
+    await guild.members.fetch();
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Impossible de récupérer les membres");
-    await interaction.editReply("❌ Impossible de récupérer la liste des membres. Vérifie que l'intent **Server Members Intent** est activé dans le portail développeur Discord.");
+    await interaction.editReply(`❌ Impossible de récupérer les membres : \`${errMsg}\``);
     return;
   }
 
