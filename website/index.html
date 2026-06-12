@@ -360,7 +360,8 @@
     <span class="cmd">/dmall</span>
     <span class="flag"> message:</span><span class="val">"Nouvelle release dispo 🚀"</span>
     <span class="flag"> role:</span><span class="val">@Clients</span>
-    <span class="res">✅ Envoi terminé — 142 envoyés · 3 échecs</span>
+    <span class="flag"> exclure:</span><span class="val">@VIP</span>
+    <span class="res">✅ Envoi terminé — 138 envoyés · 3 échecs · 4 exclus</span>
   </div>
 </section>
 
@@ -400,6 +401,11 @@
       <p>500 ms d'intervalle entre chaque DM — aucun risque de sanction par l'API Discord.</p>
     </div>
     <div class="card">
+      <div class="card-icon">🚫</div>
+      <h3>Exclusion de rôle</h3>
+      <p>Ajoute <code>exclure:@Rôle</code> pour que les membres de ce rôle ne reçoivent <strong>pas</strong> le DM — même s'ils sont dans la cible.</p>
+    </div>
+    <div class="card">
       <div class="card-icon">🌐</div>
       <h3>Multi-serveurs</h3>
       <p>Un seul bot, autant de serveurs que tu veux. Les commandes sont enregistrées globalement.</p>
@@ -421,7 +427,7 @@
       <div class="step-num">2</div>
       <div class="step-body">
         <h4>Utilise la commande <code>/dmall</code></h4>
-        <p>Tape <code>/dmall message:Ton message</code> dans n'importe quel salon. Ajoute <code>role:@UnRôle</code> pour cibler un rôle spécifique.</p>
+        <p>Tape <code>/dmall message:Ton message</code> dans n'importe quel salon. Ajoute <code>role:@UnRôle</code> pour cibler un rôle, et <code>exclure:@UnRôle</code> pour qu'un rôle ne reçoive <strong>pas</strong> le DM.</p>
       </div>
     </div>
     <div class="step">
