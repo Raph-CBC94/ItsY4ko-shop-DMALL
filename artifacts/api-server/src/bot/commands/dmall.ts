@@ -60,10 +60,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     } else {
       guild = fetched as Guild;
     }
-  } catch (err) {
+  } catch (err: unknown) {
+    const code = (err as { code?: number }).code;
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err, guildId }, "Impossible de récupérer le guild");
-    await interaction.editReply(`❌ Impossible d'accéder au serveur : \`${msg}\``);
+    if (code === 10004) {
+      await interaction.editReply("❌ Le bot n'est pas membre de ce serveur. Réinvite-le via le lien d'invitation, puis réessaie.");
+    } else {
+      await interaction.editReply(`❌ Impossible d'accéder au serveur : \`${msg}\``);
+    }
     return;
   }
 
