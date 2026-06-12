@@ -1,0 +1,18 @@
+{
+  "name": "ItsY4ko Shop DM ALL",
+  "short_name": "DM ALL",
+  "description": "Bot Discord officiel ItsY4ko Shop — envoi de DMs en masse.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#7c3aed",
+  "background_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
