@@ -4,6 +4,7 @@ import {
   PermissionFlagsBits,
   GuildMember,
   Role,
+  Guild,
   EmbedBuilder,
   Colors,
 } from "discord.js";
@@ -28,6 +29,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  // 1. Vérifications synchrones (pas d'API) — avant tout
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
     await interaction.reply({
       content: "❌ Tu dois être **administrateur** pour utiliser cette commande.",
@@ -42,17 +44,30 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // Fetch the guild via API if not in cache (e.g. after a reconnect)
-  const guild = interaction.guild ?? await interaction.client.guilds.fetch(guildId);
-
   const message = interaction.options.getString("message", true);
-
-  // .id est présent sur Role ET APIRole — méthode la plus fiable
   const roleId = interaction.options.getRole("role")?.id ?? undefined;
 
+  // 2. Acquitter l'interaction IMMÉDIATEMENT avant tout appel API
   await interaction.deferReply({ ephemeral: true });
 
-  // Résolution complète du rôle depuis le guild si fourni
+  // 3. Récupère le guild (cache ou API)
+  let guild: Guild;
+  try {
+    const fetched = interaction.guild ?? await interaction.client.guilds.fetch(guildId);
+    // guilds.fetch peut retourner OAuth2Guild (liste) — on force un fetch complet si nécessaire
+    if (!("members" in fetched)) {
+      guild = await interaction.client.guilds.fetch({ guild: guildId, force: true }) as Guild;
+    } else {
+      guild = fetched as Guild;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err, guildId }, "Impossible de récupérer le guild");
+    await interaction.editReply(`❌ Impossible d'accéder au serveur : \`${msg}\``);
+    return;
+  }
+
+  // 4. Résolution du rôle si fourni
   let resolvedRole: Role | null = null;
   if (roleId) {
     try {
@@ -62,25 +77,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         return;
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       logger.error({ err, roleId }, "Impossible de résoudre le rôle");
-      await interaction.editReply("❌ Impossible de résoudre le rôle spécifié.");
+      await interaction.editReply(`❌ Impossible de résoudre le rôle : \`${msg}\``);
       return;
     }
   }
 
-  // Récupère tous les membres avec leurs rôles
+  // 5. Récupère tous les membres
   try {
     await guild.members.fetch();
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Impossible de récupérer les membres");
-    await interaction.editReply(`❌ Impossible de récupérer les membres : \`${errMsg}\``);
+    await interaction.editReply(`❌ Impossible de récupérer les membres : \`${msg}\`\n\nVérifie que **Server Members Intent** est activé dans le portail développeur Discord.`);
     return;
   }
 
   const members = guild.members.cache.filter((m: GuildMember) => {
     if (m.user.bot) return false;
-    if (resolvedRole) return m.roles.cache.has(resolvedRole.id);
+    if (resolvedRole) return m.roles.cache.has(resolvedRole!.id);
     return true;
   });
 
@@ -92,10 +108,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  // 6. Envoi en cours
   const progressEmbed = new EmbedBuilder()
     .setDescription(`📨 Envoi en cours vers **${members.size}** membre(s)${resolvedRole ? ` (rôle : ${resolvedRole.name})` : ""}…`)
     .setColor(Colors.Blue);
-
   await interaction.editReply({ embeds: [progressEmbed] });
 
   let sent = 0;
@@ -112,6 +128,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await new Promise((r) => setTimeout(r, 500));
   }
 
+  // 7. Rapport final
   const resultEmbed = new EmbedBuilder()
     .setTitle("✅ Envoi terminé")
     .addFields(
