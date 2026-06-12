@@ -24,7 +24,13 @@ export const data = new SlashCommandBuilder()
   .addRoleOption((option) =>
     option
       .setName("role")
-      .setDescription("Rôle cible (facultatif). Sans ce paramètre, tous les membres reçoivent le DM.")
+      .setDescription("Rôle cible (facultatif) — seuls les membres de ce rôle reçoivent le DM.")
+      .setRequired(false),
+  )
+  .addRoleOption((option) =>
+    option
+      .setName("exclure")
+      .setDescription("Rôle à exclure (facultatif) — les membres de ce rôle ne reçoivent PAS le DM.")
       .setRequired(false),
   );
 
@@ -46,6 +52,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const message = interaction.options.getString("message", true);
   const roleId = interaction.options.getRole("role")?.id ?? undefined;
+  const excludeRoleId = interaction.options.getRole("exclure")?.id ?? undefined;
 
   // 2. Acquitter l'interaction IMMÉDIATEMENT avant tout appel API
   await interaction.deferReply({ ephemeral: true });
@@ -54,7 +61,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   let guild: Guild;
   try {
     const fetched = interaction.guild ?? await interaction.client.guilds.fetch(guildId);
-    // guilds.fetch peut retourner OAuth2Guild (liste) — on force un fetch complet si nécessaire
     if (!("members" in fetched)) {
       guild = await interaction.client.guilds.fetch({ guild: guildId, force: true }) as Guild;
     } else {
@@ -72,24 +78,41 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  // 4. Résolution du rôle si fourni
+  // 4. Résolution du rôle cible si fourni
   let resolvedRole: Role | null = null;
   if (roleId) {
     try {
       resolvedRole = await guild.roles.fetch(roleId);
       if (!resolvedRole) {
-        await interaction.editReply("❌ Le rôle spécifié est introuvable sur ce serveur.");
+        await interaction.editReply("❌ Le rôle cible est introuvable sur ce serveur.");
         return;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error({ err, roleId }, "Impossible de résoudre le rôle");
-      await interaction.editReply(`❌ Impossible de résoudre le rôle : \`${msg}\``);
+      logger.error({ err, roleId }, "Impossible de résoudre le rôle cible");
+      await interaction.editReply(`❌ Impossible de résoudre le rôle cible : \`${msg}\``);
       return;
     }
   }
 
-  // 5. Récupère tous les membres
+  // 5. Résolution du rôle exclu si fourni
+  let excludedRole: Role | null = null;
+  if (excludeRoleId) {
+    try {
+      excludedRole = await guild.roles.fetch(excludeRoleId);
+      if (!excludedRole) {
+        await interaction.editReply("❌ Le rôle à exclure est introuvable sur ce serveur.");
+        return;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error({ err, excludeRoleId }, "Impossible de résoudre le rôle exclu");
+      await interaction.editReply(`❌ Impossible de résoudre le rôle à exclure : \`${msg}\``);
+      return;
+    }
+  }
+
+  // 6. Récupère tous les membres
   try {
     await guild.members.fetch();
   } catch (err) {
@@ -101,21 +124,23 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const members = guild.members.cache.filter((m: GuildMember) => {
     if (m.user.bot) return false;
-    if (resolvedRole) return m.roles.cache.has(resolvedRole!.id);
+    if (resolvedRole && !m.roles.cache.has(resolvedRole.id)) return false;
+    if (excludedRole && m.roles.cache.has(excludedRole.id)) return false;
     return true;
   });
 
   if (members.size === 0) {
-    const noTarget = resolvedRole
-      ? `Aucun membre humain trouvé avec le rôle **${resolvedRole.name}**.`
-      : "Aucun membre humain trouvé sur ce serveur.";
-    await interaction.editReply(`⚠️ ${noTarget}`);
+    await interaction.editReply("⚠️ Aucun membre humain ne correspond aux critères (cible / exclusion).");
     return;
   }
 
-  // 6. Envoi en cours
+  // Description de la cible pour les messages
+  const targetDesc = resolvedRole ? `rôle **${resolvedRole.name}**` : "tous les membres";
+  const excludeDesc = excludedRole ? ` (excl. **${excludedRole.name}**)` : "";
+
+  // 7. Envoi en cours
   const progressEmbed = new EmbedBuilder()
-    .setDescription(`📨 Envoi en cours vers **${members.size}** membre(s)${resolvedRole ? ` (rôle : ${resolvedRole.name})` : ""}…`)
+    .setDescription(`📨 Envoi en cours vers **${members.size}** membre(s) — ${targetDesc}${excludeDesc}…`)
     .setColor(Colors.Blue);
   await interaction.editReply({ embeds: [progressEmbed] });
 
@@ -133,7 +158,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await new Promise((r) => setTimeout(r, 500));
   }
 
-  // 7. Rapport final
+  // 8. Rapport final
   const resultEmbed = new EmbedBuilder()
     .setTitle("✅ Envoi terminé")
     .addFields(
@@ -143,6 +168,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     )
     .setColor(failed === 0 ? Colors.Green : Colors.Orange)
     .setTimestamp();
+
+  if (excludedRole) {
+    resultEmbed.addFields({ name: "🚫 Exclus", value: `Rôle ${excludedRole.name}`, inline: true });
+  }
 
   await interaction.editReply({ embeds: [resultEmbed] });
 }
