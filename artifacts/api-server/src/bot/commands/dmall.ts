@@ -36,11 +36,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const guild = interaction.guild;
-  if (!guild) {
+  const guildId = interaction.guildId;
+  if (!guildId) {
     await interaction.reply({ content: "❌ Cette commande ne fonctionne que dans un serveur.", ephemeral: true });
     return;
   }
+
+  // Fetch the guild via API if not in cache (e.g. after a reconnect)
+  const guild = interaction.guild ?? await interaction.client.guilds.fetch(guildId);
 
   const message = interaction.options.getString("message", true);
 
