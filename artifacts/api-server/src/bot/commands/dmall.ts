@@ -118,7 +118,22 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Impossible de récupérer les membres");
-    await interaction.editReply(`❌ Impossible de récupérer les membres : \`${msg}\`\n\nVérifie que **Server Members Intent** est activé dans le portail développeur Discord.`);
+
+    // Rate-limit Discord (opcode 8) — extraire le délai et afficher un message propre
+    const rateLimitMatch = msg.match(/Retry after ([\d.]+) seconds?/i);
+    if (rateLimitMatch) {
+      const seconds = Math.ceil(parseFloat(rateLimitMatch[1]));
+      await interaction.editReply(`⏳ **Cooldown actif** — Discord limite les requêtes membres.\nRéessaie dans **${seconds} seconde${seconds > 1 ? "s" : ""}**.`);
+      return;
+    }
+
+    // Problème d'intent
+    if (msg.toLowerCase().includes("intent") || msg.toLowerCase().includes("privileged")) {
+      await interaction.editReply("❌ Impossible de récupérer les membres.\n\nVérifie que **Server Members Intent** est activé dans le portail développeur Discord.");
+      return;
+    }
+
+    await interaction.editReply(`❌ Impossible de récupérer les membres : \`${msg}\``);
     return;
   }
 
