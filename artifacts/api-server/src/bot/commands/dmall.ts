@@ -9,6 +9,7 @@ import {
   Colors,
 } from "discord.js";
 import { logger } from "../../lib/logger";
+import { addLog } from "../store/dmLogs";
 
 export const data = new SlashCommandBuilder()
   .setName("dmall")
@@ -173,7 +174,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await new Promise((r) => setTimeout(r, 500));
   }
 
-  // 8. Rapport final
+  // 8. Enregistrement dans les logs
+  const executor = interaction.user;
+  addLog(guildId, {
+    executorId: executor.id,
+    executorTag: executor.tag ?? executor.username,
+    message,
+    targetRole: resolvedRole?.name ?? null,
+    excludedRole: excludedRole?.name ?? null,
+    sent,
+    failed,
+    timestamp: new Date(),
+  });
+
+  // 9. Rapport final
   const resultEmbed = new EmbedBuilder()
     .setTitle("✅ Envoi terminé")
     .addFields(

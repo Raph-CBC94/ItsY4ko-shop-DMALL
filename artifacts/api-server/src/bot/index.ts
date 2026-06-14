@@ -10,6 +10,7 @@ import {
 } from "discord.js";
 import { logger } from "../lib/logger";
 import * as dmall from "./commands/dmall";
+import * as logs from "./commands/logs";
 
 interface Command {
   data: { name: string; toJSON(): unknown };
@@ -18,6 +19,7 @@ interface Command {
 
 const commands = new Collection<string, Command>();
 commands.set(dmall.data.name, dmall);
+commands.set(logs.data.name, logs);
 
 async function registerCommands(token: string, clientId: string): Promise<void> {
   const rest = new REST().setToken(token);
